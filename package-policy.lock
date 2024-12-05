@@ -1,0 +1,59 @@
+version: 1
+packages:
+  - package: esbuild@0.23.1
+    type: script
+    cacheKey: "postinstall: node install.js"
+  - package: read@4.0.0
+    type: script
+    cacheKey: "prepare: tshy"
+  - package: rollup@4.28.0
+    type: script
+    cacheKey: "prepare: husky && node scripts/check-release.js || npm run build:prepare"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "preinstall: echo preinstall"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "install: echo install"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "postinstall: echo postinstall"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "prepare: echo prepare"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "preinstall: echo preinstall"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "install: echo install"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "postinstall: echo postinstall"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "prepare: echo prepare"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "preinstall: echo preinstall"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "install: echo install"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "postinstall: echo postinstall"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "prepare: echo prepare"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "preinstall: echo preinstall"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "install: echo install"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "postinstall: echo postinstall"
+  - package: test@1.0.0
+    type: script
+    cacheKey: "prepare: echo prepare"

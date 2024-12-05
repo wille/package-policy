@@ -1,0 +1,23 @@
+{
+  "name": "test",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "preinstall": "echo preinstall",
+    "install": "echo install",
+    "postinstall": "echo postinstall",
+
+    "prepublish": "echo prepublish",
+
+    "preprepare": "echo preprepare",
+    "prepare": "echo prepare",
+    "postprepare": "echo postprepare"
+  },
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

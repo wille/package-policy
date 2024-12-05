@@ -1,0 +1,60 @@
+{
+  "name": "package-policy",
+  "version": "0.0.1",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "bin": {
+    "package-policy": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "maintainers": [
+    "wille <w.sandstrom@gmail.com>"
+  ],
+  "scripts": {
+    "test": "tsx --test",
+    "build": "rollup -c rollup.config.js"
+  },
+  "files": [
+    "./dist"
+  ],
+  "type": "module",
+  "author": "wille",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wille/package-policy.git"
+  },
+  "license": "MIT",
+  "description": "A tool to enforce package policies to protect against supply chain attacks",
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/debug": "^4.1.12",
+    "@types/node": "22.10.1",
+    "@types/semver": "^7.5.8",
+    "prettier": "^3.4.2",
+    "rollup": "4.28.0",
+    "tslib": "^2.8.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "chalk": "5.3.0",
+    "commander": "^12.1.0",
+    "debug": "^4.4.0",
+    "parse-duration": "^1.1.1",
+    "read": "4.0.0",
+    "semver": "7.6.3",
+    "test": "file:./test",
+    "yaml": "2.6.1"
+  },
+  "keywords": [
+    "npm",
+    "yarn",
+    "pnpm",
+    "cve",
+    "audit",
+    "security",
+    "dependencies"
+  ]
+}
