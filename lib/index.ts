@@ -72,6 +72,7 @@ console.debug = debug('package-policy');
  * and the license field.
  */
 async function processLocalPackageJson(
+    config: Config,
     dep: Dependency,
     dir: string
 ): Promise<Warning[]> {
@@ -104,8 +105,8 @@ async function processLocalPackageJson(
             }
         }
 
-        if (defaultConfig.licenses?.length) {
-            if (!json.license && defaultConfig.licenses) {
+        if (config.licenses?.length) {
+            if (!json.license && config.licenses) {
                 problems.push({
                     package: name,
                     message: `has no license field in package.json`,
@@ -114,10 +115,7 @@ async function processLocalPackageJson(
                 });
             }
 
-            if (
-                json.license &&
-                !defaultConfig.licenses.includes(json.license)
-            ) {
+            if (json.license && !config.licenses.includes(json.license)) {
                 problems.push({
                     package: name,
                     message: `has license ${chalk.bold(chalk.yellow(json.license))} which is not in the whitelist`,
@@ -254,6 +252,7 @@ async function checkPackageAge(
 }
 
 async function readInstalledPackagesFromLockfile(
+    config: Config,
     dir: string
 ): Promise<Dependency[]> {
     const packageJson = path.join(dir, 'package-lock.json');
@@ -294,7 +293,7 @@ async function readInstalledPackagesFromLockfile(
                 continue;
             }
 
-            const blacklistVersion = defaultConfig.blacklist?.[packageName];
+            const blacklistVersion = config.blacklist?.[packageName];
             if (
                 blacklistVersion &&
                 semver.satisfies(spec.version, blacklistVersion, {
@@ -306,7 +305,7 @@ async function readInstalledPackagesFromLockfile(
                 );
             }
 
-            const ignoreVersion = defaultConfig.ignore?.[packageName];
+            const ignoreVersion = config.ignore?.[packageName];
             if (
                 ignoreVersion &&
                 semver.satisfies(spec.version, ignoreVersion, {
@@ -375,7 +374,7 @@ async function processRepo(dir: string) {
     const lockfile = path.join(dir, 'package-policy.lock');
     let cacheData = await readWarningsFromLockfile(lockfile);
 
-    const deps = await readInstalledPackagesFromLockfile(dir);
+    const deps = await readInstalledPackagesFromLockfile(config, dir);
     console.log(`Processing ${deps.length} dependencies in ${dir}`);
 
     let warnings: Warning[] = [];
@@ -404,6 +403,7 @@ async function processRepo(dir: string) {
         await Promise.all(
             slice.map(async (dep) => {
                 const jsonWarnings = await processLocalPackageJson(
+                    config,
                     dep,
                     path.join(dir, dep.path)
                 );
@@ -448,7 +448,7 @@ async function processRepo(dir: string) {
                                 config.minWeeklyDownloads,
                         });
                         console.debug(
-                            `${dep.name} had ${downloads} downloads last week, which is less than the minWeeklyDownloads treshold of ${defaultConfig.minWeeklyDownloads}`
+                            `${dep.name} had ${downloads} downloads last week, which is less than the minWeeklyDownloads treshold of ${config.minWeeklyDownloads}`
                         );
                     }
                 }
@@ -538,7 +538,7 @@ async function processRepo(dir: string) {
         for (const problem of licenseProblems) {
             console.log(' ', chalk.bold(problem.package), problem.message);
         }
-    } else if (defaultConfig.licenses?.length) {
+    } else if (config.licenses?.length) {
         console.log(
             chalk.green('✔ All checked packages have a valid license')
         );
