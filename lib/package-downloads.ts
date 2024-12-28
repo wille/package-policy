@@ -1,6 +1,7 @@
-import fs from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
+import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fetchJson } from './fetch.js';
 
 export async function getPackageDownloadCache(cacheDir: string) {
     const cacheFilePath = path.join(cacheDir, 'package-downloads.json');
@@ -22,19 +23,19 @@ export async function savePackageDownloadCache(
 }
 
 export async function checkPackageDownloads(packageName: string) {
-    const start = performance.now();
+    try {
+        const url =
+            'https://api.npmjs.org/downloads/point/last-week/' + packageName;
 
-    const url =
-        'https://api.npmjs.org/downloads/point/last-week/' + packageName;
+        const res = await fetchJson(url);
 
-    const req = await fetch(url);
-    const json: any = await req.json();
+        if (typeof res.downloads !== 'number') {
+            throw new Error('Bad response: no `downloads` field');
+        }
 
-    console.log('GET', url, `${Math.round(performance.now() - start)}ms`);
-
-    if (typeof json.downloads !== 'number') {
-        throw new Error('Bad response: no `downloads` field');
+        return res.downloads;
+    } catch (err) {
+        console.error('Error fetching package downloads for', packageName, err);
+        return -1;
     }
-
-    return json.downloads;
 }

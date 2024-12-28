@@ -20,6 +20,7 @@ import {
     getPackageDownloadCache,
     savePackageDownloadCache,
 } from './package-downloads.js';
+import { fetchJson } from './fetch.js';
 
 interface Config {
     minPackageAge?: number;
@@ -165,26 +166,8 @@ async function cacheRegistry(packageName: string, version: string) {
         }
     }
 
-    const start = performance.now();
-
     const url = `https://registry.npmjs.org/${packageName}`;
-    const req = await fetch(url, {
-        headers: {
-            'User-Agent': 'package-policy',
-        },
-    });
-
-    console.log(
-        'GET',
-        url,
-        `(${version}) ${Math.round(performance.now() - start)}ms`
-    );
-
-    if (req.status !== 200) {
-        throw new Error(`HTTP ${req.status} ${url}`);
-    }
-
-    const json: any = await req.json();
+    const json = await fetchJson(url);
 
     if (!json.versions) {
         throw new Error(`No versions field in ${url}`);
@@ -383,9 +366,11 @@ async function readWarningsFromLockfile(lockfile: string) {
 async function processRepo(dir: string) {
     const start = performance.now();
 
-    const cache = program.getOptionValue('cache');
-
     const config = await getConfig(dir);
+
+    const cache = program.getOptionValue('cache');
+    const enableDownloadCheck =
+        config.minWeeklyDownloads && config.minWeeklyDownloads > 0;
 
     const lockfile = path.join(dir, 'package-policy.lock');
     let cacheData = await readWarningsFromLockfile(lockfile);
@@ -437,18 +422,23 @@ async function processRepo(dir: string) {
                 }
 
                 if (
-                    !checkedPackageDownloads.has(dep.name) &&
-                    config.minWeeklyDownloads &&
-                    config.minWeeklyDownloads > 0
+                    enableDownloadCheck &&
+                    !checkedPackageDownloads.has(dep.name)
                 ) {
                     const downloads =
                         packageDownloadCache[dep.name] ||
                         (await checkPackageDownloads(dep.name));
 
-                    packageDownloadCache[dep.name] = downloads;
                     checkedPackageDownloads.add(dep.name);
 
-                    if (downloads < config.minWeeklyDownloads) {
+                    if (downloads !== -1) {
+                        packageDownloadCache[dep.name] = downloads;
+                    }
+
+                    if (
+                        downloads !== -1 &&
+                        downloads < config.minWeeklyDownloads!
+                    ) {
                         warnings.push({
                             message: `had ${chalk.bold(chalk.yellow(downloads))} downloads last week`,
                             package: dep.name,
@@ -515,7 +505,7 @@ async function processRepo(dir: string) {
         return true;
     });
 
-    if (cache) {
+    if (cache && enableDownloadCheck) {
         await savePackageDownloadCache(
             program.getOptionValue('cacheDir'),
             packageDownloadCache

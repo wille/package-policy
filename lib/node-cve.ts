@@ -1,4 +1,5 @@
 import semver from 'semver';
+import { fetchJson } from './fetch.js';
 
 let nodeAdvisories: any = null;
 async function getNodeAdvisories() {
@@ -6,16 +7,11 @@ async function getNodeAdvisories() {
         return nodeAdvisories;
     }
 
-    const req = await fetch(
-        'https://raw.githubusercontent.com/nodejs/security-wg/refs/heads/main/vuln/core/index.json',
-        {
-            headers: {
-                'User-Agent': 'package-policy',
-            },
-        }
+    const req = await fetchJson(
+        'https://raw.githubusercontent.com/nodejs/security-wg/refs/heads/main/vuln/core/index.json'
     );
 
-    return (nodeAdvisories = await req.json());
+    return (nodeAdvisories = req);
 }
 
 export async function checkNodeVersion(nodeVersion = process.versions.node) {
