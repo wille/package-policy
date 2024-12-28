@@ -32,11 +32,8 @@ alias npp=npp
 
 You can also set `ignore-scripts=true` in your `.npmrc` file to ignore all installation scripts when running `npm install` and manually run `npm rebuild` after running `package-policy` to ensure that the packages are safe to install.
 
-```sh
-
 > [!NOTE]
 > For more information about package.json scripts see https://docs.npmjs.com/cli/v10/using-npm/scripts#npm-install
-
 
 ## Minimum package version age
 
