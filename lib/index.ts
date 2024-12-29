@@ -65,77 +65,6 @@ console.error = (...args) => console.log(chalk.red(...args));
 console.warn = (...args) => console.log(chalk.yellow(...args));
 console.debug = debug('package-policy');
 
-/**
- * Check the locally installed package.json for any warnings.
- *
- * We check the .scripts object for any scripts that are executed during installation,
- * and the license field.
- */
-async function processLocalPackageJson(
-    config: Config,
-    dep: Dependency,
-    dir: string
-): Promise<Warning[]> {
-    try {
-        const name = `${dep.name}@${dep.version}`;
-
-        const data = await fs.readFile(path.join(dir, 'package.json'), 'utf8');
-        const json = JSON.parse(data);
-
-        if (!json.scripts) {
-            // No .scripts: {} found in package.json at all
-            return [];
-        }
-
-        const keys = Object.keys(json.scripts);
-
-        const problems: Warning[] = [];
-
-        for (const script of keys) {
-            const value = json.scripts[script];
-            if (scriptList.includes(script)) {
-                problems.push({
-                    package: name,
-                    message: `will run script "${script}": "${chalk.bold(value)}"`,
-                    type: 'script',
-                    cacheKey: `${script}: ${value}`,
-                });
-
-                console.debug(name, 'will run script', `${script}:`, value);
-            }
-        }
-
-        if (config.licenses?.length) {
-            if (!json.license && config.licenses) {
-                problems.push({
-                    package: name,
-                    message: `has no license field in package.json`,
-                    type: 'license',
-                    cacheKey: 'no license',
-                });
-            }
-
-            if (json.license && !config.licenses.includes(json.license)) {
-                problems.push({
-                    package: name,
-                    message: `has license ${chalk.bold(chalk.yellow(json.license))} which is not in the whitelist`,
-                    type: 'license',
-                    cacheKey: json.license,
-                });
-            }
-        }
-
-        return problems;
-    } catch (err: any) {
-        if (err.code === 'ENOENT') {
-            console.debug('No package.json found in', dir);
-            return [];
-        }
-
-        throw err;
-    }
-}
-
 async function cacheRegistry(packageName: string, version: string) {
     const cacheFile = path.join(
         program.getOptionValue('cacheDir'),
@@ -153,7 +82,7 @@ async function cacheRegistry(packageName: string, version: string) {
 
             // If the cache doesn't include the release date of the package,
             // we'll query the registry again
-            if (cache.versions.includes(version)) {
+            if (cache.versions[version]) {
                 return cache;
             }
         } catch (err) {
@@ -188,11 +117,18 @@ async function cacheRegistry(packageName: string, version: string) {
     }
 
     // The package manifest might be huge so only cache the necessary data
-    const requiredData = {
+    const requiredData: any = {
         _version: 1,
         time: json.time,
-        versions: Object.keys(json.versions),
+        versions: {},
     };
+
+    for (const [version, data] of Object.entries<any>(json.versions)) {
+        requiredData.versions[version] = {
+            license: data.license,
+            scripts: data.scripts,
+        };
+    }
 
     if (program.getOptionValue('cache')) {
         try {
@@ -215,17 +151,23 @@ async function cacheRegistry(packageName: string, version: string) {
  *
  * We need to query the npm registry to get the publish date.
  */
-async function checkPackageAge(
-    minPackageAge: number,
+async function checkPackage(
+    config: Config,
     packageName: string,
-    version: string
-): Promise<Warning | null> {
-    try {
-        const json = await cacheRegistry(packageName, version);
+    packageVersion: string
+): Promise<Warning[]> {
+    const problems: Warning[] = [];
 
-        const time = json.time[version];
+    try {
+        const json = await cacheRegistry(packageName, packageVersion);
+        const packageNameVersion = `${packageName}@${packageVersion}`;
+
+        const time = json.time[packageVersion];
         const date = new Date(time);
-        if (date.getTime() > Date.now() - minPackageAge) {
+        if (
+            config.minPackageAge &&
+            date.getTime() > Date.now() - config.minPackageAge
+        ) {
             const daysAgo = (Date.now() - date.getTime()) / 1000 / 60 / 60 / 24;
             const hours = (Date.now() - date.getTime()) / 1000 / 60 / 60;
 
@@ -234,21 +176,64 @@ async function checkPackageAge(
                     ? `${Math.floor(daysAgo)} days ago`
                     : `${Math.floor(hours)} hours ago`;
 
-            return {
-                package: packageName,
+            problems.push({
+                package: packageNameVersion,
                 message: `is violating the package minAge policy. Last published ${chalk.red(chalk.bold(ts))} (${time})`,
                 type: 'minPackageAge',
-                cacheKey: version,
-            };
+                cacheKey: packageVersion,
+            });
+        }
+
+        for (const script of Object.keys(
+            json.versions[packageVersion].scripts || []
+        )) {
+            const value = json.versions[packageVersion].scripts[script];
+            if (scriptList.includes(script)) {
+                problems.push({
+                    package: packageNameVersion,
+                    message: `will run script "${script}": "${chalk.bold(value)}"`,
+                    type: 'script',
+                    cacheKey: `${script}: ${value}`,
+                });
+
+                console.debug(
+                    packageNameVersion,
+                    'will run script',
+                    `${script}:`,
+                    value
+                );
+            }
+        }
+
+        // Only check licenses if any are defined in the config
+        if (config.licenses?.length) {
+            const license = json.versions[packageVersion].license;
+            if (!license && config.licenses) {
+                problems.push({
+                    package: packageNameVersion,
+                    message: `has no license field in package.json`,
+                    type: 'license',
+                    cacheKey: 'no license',
+                });
+            }
+
+            if (license && !config.licenses.includes(license)) {
+                problems.push({
+                    package: packageNameVersion,
+                    message: `has license ${chalk.bold(chalk.yellow(license))} which is not in the whitelist`,
+                    type: 'license',
+                    cacheKey: license,
+                });
+            }
         }
     } catch (err) {
         console.error(
-            `Failed to fetch ${packageName}@${version} from registry`,
+            `Failed to fetch ${packageName}@${packageVersion} from registry`,
             err
         );
     }
 
-    return null;
+    return problems;
 }
 
 async function readInstalledPackagesFromLockfile(
@@ -275,12 +260,6 @@ async function readInstalledPackagesFromLockfile(
 
             if (spec.link === true) {
                 // Ignore linked modules
-                continue;
-            }
-
-            if (spec.optional === true) {
-                // Ignore optional dependencies which may not be installed.
-                // We want to query the npm registry for these dependencies to check package.json for scripts
                 continue;
             }
 
@@ -317,8 +296,6 @@ async function readInstalledPackagesFromLockfile(
                 );
                 continue;
             }
-
-            // TODO check workspaces
 
             // Some packages might have a name set and be installed under a different pathname
             // Example: node_modules/string-width-cjs -> string-width
@@ -402,24 +379,9 @@ async function processRepo(dir: string) {
 
         await Promise.all(
             slice.map(async (dep) => {
-                const jsonWarnings = await processLocalPackageJson(
-                    config,
-                    dep,
-                    path.join(dir, dep.path)
-                );
-                warnings.push(...jsonWarnings);
+                const p = await checkPackage(config, dep.name, dep.version);
 
-                if (config.minPackageAge && config.minPackageAge > 0) {
-                    const ageWarning = await checkPackageAge(
-                        config.minPackageAge,
-                        dep.name,
-                        dep.version
-                    );
-
-                    if (ageWarning) {
-                        warnings.push(ageWarning);
-                    }
-                }
+                warnings.push(...p);
 
                 if (
                     enableDownloadCheck &&
