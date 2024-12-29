@@ -240,14 +240,14 @@ async function readInstalledPackagesFromLockfile(
     config: Config,
     dir: string
 ): Promise<Dependency[]> {
-    const packageJson = path.join(dir, 'package-lock.json');
+    const packageLockJson = path.join(dir, 'package-lock.json');
     const yarnLock = path.join(dir, 'yarn.lock');
     const pnpmLock = path.join(dir, 'pnpm-lock.yaml');
 
     const deps: Record<string, Dependency> = {};
 
-    if (existsSync(packageJson)) {
-        const data = await fs.readFile(packageJson, 'utf8');
+    if (existsSync(packageLockJson)) {
+        const data = await fs.readFile(packageLockJson, 'utf8');
         const json = JSON.parse(data);
 
         for (const [installationPath, spec] of Object.entries<any>(
@@ -405,9 +405,7 @@ async function processRepo(dir: string) {
                             message: `had ${chalk.bold(chalk.yellow(downloads))} downloads last week`,
                             package: dep.name,
                             type: 'minWeeklyDownloads',
-                            cacheKey:
-                                'minWeeklyDownloads=' +
-                                config.minWeeklyDownloads,
+                            cacheKey: String(config.minWeeklyDownloads),
                         });
                         console.debug(
                             `${dep.name} had ${downloads} downloads last week, which is less than the minWeeklyDownloads treshold of ${config.minWeeklyDownloads}`
